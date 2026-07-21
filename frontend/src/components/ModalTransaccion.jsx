@@ -1,9 +1,12 @@
+// 1. Imports
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { X, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
+// 2. Component
 export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransaccionCreada, transaccionAEditar = null }) {
-  const [tipo, setTipo] = useState(1); // 0: Ingreso, 1: Gasto
+  // 3. States
+  const [tipo, setTipo] = useState(1);
   const [cuentaId, setCuentaId] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
   const [monto, setMonto] = useState('');
@@ -13,18 +16,34 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
 
-  // Helper para formatear fecha a YYYY-MM-DD
+  // 4. Helpers
   const formatFechaInput = (fechaISO) => {
     if (!fechaISO) return '';
     return fechaISO.split('T')[0];
   };
 
-  // Helper para convertir fecha input a ISO string
   const fechaToISO = (fechaInput) => {
     if (!fechaInput) return new Date().toISOString();
     return new Date(fechaInput + 'T00:00:00').toISOString();
   };
 
+  // 5. Función cargarCategorias (función normal)
+  const cargarCategorias = async () => {
+    try {
+      console.log('Cargando categorías...');
+      const res = await api.get('/categorias?soloActivas=true');
+      console.log('Categorías cargadas:', res.data);
+      setCategorias(res.data);
+      if (!transaccionAEditar && res.data.length > 0) {
+        setCategoriaId(res.data[0].id.toString());
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setError('Error al obtener categorías.');
+    }
+  };
+
+  // 6. useEffects
   useEffect(() => {
     if (isOpen) {
       cargarCategorias();
@@ -58,20 +77,6 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
     }
   }, [tipo, categorias, transaccionAEditar]);
 
-  const cargarCategorias = async () => {
-    try {
-      const res = await api.get('/categorias');
-      setCategorias(res.data);
-      if (!transaccionAEditar && res.data.length > 0) {
-        setCategoriaId(res.data[0].id.toString());
-      }
-    } catch {
-      setError('Error al obtener categorías.');
-    }
-  };
-
-  if (!isOpen) return null;
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -102,6 +107,8 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
   };
 
   const categoriasFiltradas = categorias.filter(c => c.tipo === parseInt(tipo));
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">

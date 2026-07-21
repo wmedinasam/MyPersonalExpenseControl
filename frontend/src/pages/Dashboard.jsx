@@ -18,8 +18,12 @@ import {
   Target,
   AlertTriangle,
   CheckCircle2,
+  ArrowRightLeft,
+  Tag,
 } from "lucide-react";
 import ModalPresupuesto from "../components/ModalPresupuesto";
+import ModalTransferencia from "../components/ModalTransferencia";
+import ModalCategorias from "../components/ModalCategorias";
 
 export default function Dashboard() {
   const { usuario, logout } = useAuth();
@@ -28,13 +32,12 @@ export default function Dashboard() {
   const [modalCuentaOpen, setModalCuentaOpen] = useState(false);
   const [modalTransaccionOpen, setModalTransaccionOpen] = useState(false);
   const [cargando, setCargando] = useState(true);
-
+  const [modalTransferenciaOpen, setModalTransferenciaOpen] = useState(false);
   const [transaccionAEditar, setTransaccionAEditar] = useState(null);
-
   const [presupuestos, setPresupuestos] = useState([]);
   const [modalPresupuestoOpen, setModalPresupuestoOpen] = useState(false);
   const [presupuestoAEditar, setPresupuestoAEditar] = useState(null);
-
+  const [modalCategoriasOpen, setModalCategoriasOpen] = useState(false);
 
   const cargarDatos = async () => {
     setCargando(true);
@@ -71,12 +74,7 @@ export default function Dashboard() {
   };
 
   const handleEliminarPresupuesto = async (id) => {
-    if (
-      !window.confirm(
-        "¿Estás seguro de eliminar este presupuesto?",
-      )
-    )
-      return;
+    if (!window.confirm("¿Estás seguro de eliminar este presupuesto?")) return;
 
     try {
       await api.delete(`/presupuestos/${id}`);
@@ -84,7 +82,7 @@ export default function Dashboard() {
     } catch (err) {
       alert("Error al eliminar el presupuesto");
     }
-  };  
+  };
 
   useEffect(() => {
     cargarDatos();
@@ -165,6 +163,24 @@ export default function Dashboard() {
                 <span>Nuevo Movimiento</span>
               </button>
             )}
+
+            {cuentas.length >= 2 && (
+              <button
+                onClick={() => setModalTransferenciaOpen(true)}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition shadow-lg shadow-blue-950/40 flex items-center space-x-2 cursor-pointer"
+              >
+                <ArrowRightLeft className="w-4 h-4" />
+                <span>Transferir</span>
+              </button>
+            )}
+
+            <button
+            onClick={() => setModalCategoriasOpen(true)}
+            className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition shadow-lg shadow-purple-950/40 flex items-center space-x-2 cursor-pointer"
+          >
+            <Tag className="w-3.5 h-3.5 text-purple-400" />
+            <span>Categorías</span>
+          </button>
           </div>
         </div>
 
@@ -442,6 +458,8 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+
+          
         </div>
       </main>
 
@@ -471,6 +489,19 @@ export default function Dashboard() {
         }}
         onPresupuestoGuardado={cargarDatos}
         presupuestoAEditar={presupuestoAEditar}
+      />
+
+      <ModalTransferencia
+        isOpen={modalTransferenciaOpen}
+        onClose={() => setModalTransferenciaOpen(false)}
+        cuentas={cuentas}
+        onTransferenciaExitosa={cargarDatos}
+      />
+
+      <ModalCategorias
+        isOpen={modalCategoriasOpen}
+        onClose={() => setModalCategoriasOpen(false)}
+        onCategoriasCambiadas={cargarDatos}
       />
     </div>
   );

@@ -12,6 +12,7 @@ public class Categoria
     public int UsuarioId { get; set; }
     public string Nombre { get; set; } = string.Empty; // Ej. "Alimentación", "Salario", "Transporte"
     public TipoMovimiento Tipo { get; set; }
+    public bool Activo { get; set; } = true; // Para permitir inactivar categorías sin eliminarlas
 
     // Relación
     public Usuario? Usuario { get; set; }
