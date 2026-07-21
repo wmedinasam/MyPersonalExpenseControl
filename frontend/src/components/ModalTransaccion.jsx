@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { X, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
-export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransaccionCreada }) {
+export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransaccionCreada, transaccionAEditar = null }) {
   const [tipo, setTipo] = useState(1); // 0: Ingreso, 1: Gasto
   const [cuentaId, setCuentaId] = useState('');
   const [categoriaId, setCategoriaId] = useState('');
@@ -15,15 +15,39 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
   useEffect(() => {
     if (isOpen) {
       cargarCategorias();
-      if (cuentas.length > 0) setCuentaId(cuentas[0].id.toString());
     }
-  }, [isOpen, cuentas]);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (transaccionAEditar) {
+      setTipo(transaccionAEditar.tipo);
+      setCuentaId(transaccionAEditar.cuentaId.toString());
+      setCategoriaId(transaccionAEditar.categoriaId.toString());
+      setMonto(transaccionAEditar.monto.toString());
+      setNota(transaccionAEditar.nota || '');
+    } else {
+      setTipo(1);
+      if (cuentas.length > 0) setCuentaId(cuentas[0].id.toString());
+      setMonto('');
+      setNota('');
+    }
+  }, [transaccionAEditar, isOpen, cuentas]);
+
+  // Sincronizar categoriaId cuando cambia el tipo de movimiento
+  useEffect(() => {
+    if (!transaccionAEditar && categorias.length > 0) {
+      const categoriaDelTipo = categorias.find(c => c.tipo === tipo);
+      if (categoriaDelTipo) {
+        setCategoriaId(categoriaDelTipo.id.toString());
+      }
+    }
+  }, [tipo, categorias, transaccionAEditar]);
 
   const cargarCategorias = async () => {
     try {
       const res = await api.get('/categorias');
       setCategorias(res.data);
-      if (res.data.length > 0) {
+      if (!transaccionAEditar && res.data.length > 0) {
         setCategoriaId(res.data[0].id.toString());
       }
     } catch {
@@ -38,19 +62,23 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
     setError('');
     setCargando(true);
 
+    const payload = {
+      cuentaId: parseInt(cuentaId),
+      categoriaId: parseInt(categoriaId),
+      monto: parseFloat(monto),
+      tipo: parseInt(tipo),
+      fecha: transaccionAEditar ? transaccionAEditar.fecha : new Date().toISOString(),
+      nota
+    };
+
     try {
-      await api.post('/transacciones', {
-        cuentaId: parseInt(cuentaId),
-        categoriaId: parseInt(categoriaId),
-        monto: parseFloat(monto),
-        tipo: parseInt(tipo),
-        fecha: new Date().toISOString(),
-        nota
-      });
+      if (transaccionAEditar) {
+        await api.put(`/transacciones/${transaccionAEditar.id}`, payload);
+      } else {
+        await api.post('/transacciones', payload);
+      }
       onTransaccionCreada();
       onClose();
-      setMonto('');
-      setNota('');
     } catch (err) {
       setError(err.response?.data || 'Error al procesar la transacción.');
     } finally {
@@ -71,7 +99,9 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
           <X className="w-5 h-5" />
         </button>
 
-        <h2 className="text-lg font-bold">Registrar Movimiento</h2>
+        <h2 className="text-lg font-bold">
+          {transaccionAEditar ? 'Editar Movimiento' : 'Registrar Movimiento'}
+        </h2>
 
         {/* Selector de Tipo (Gasto vs Ingreso) */}
         <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
@@ -106,7 +136,7 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Cuenta de Origen / Destino</label>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Cuenta</label>
             <select
               value={cuentaId}
               onChange={(e) => setCuentaId(e.target.value)}
@@ -152,7 +182,7 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
             <label className="block text-xs font-medium text-slate-400 mb-1">Nota / Descripción (Opcional)</label>
             <input
               type="text"
-              placeholder="Ej. Supermercado, Gasolina, Almuerzo"
+              placeholder="Ej. Supermercado, Gasolina"
               value={nota}
               onChange={(e) => setNota(e.target.value)}
               className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-emerald-500 transition"
@@ -166,7 +196,7 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
               tipo === 1 ? 'bg-rose-600 hover:bg-rose-500' : 'bg-emerald-600 hover:bg-emerald-500'
             }`}
           >
-            {cargando ? 'Procesando...' : tipo === 1 ? 'Registrar Gasto' : 'Registrar Ingreso'}
+            {cargando ? 'Procesando...' : transaccionAEditar ? 'Guardar Cambios' : tipo === 1 ? 'Registrar Gasto' : 'Registrar Ingreso'}
           </button>
         </form>
       </div>
