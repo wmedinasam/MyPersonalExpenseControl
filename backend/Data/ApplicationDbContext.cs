@@ -56,5 +56,10 @@ public class ApplicationDbContext : DbContext
             .WithMany(u => u.Presupuestos)
             .HasForeignKey(p => p.UsuarioId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Categorias
+        modelBuilder.Entity<Categoria>()
+            .Property(c => c.Activo)
+            .HasDefaultValue(true);
     }
 }
