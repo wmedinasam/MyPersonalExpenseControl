@@ -15,7 +15,11 @@ import {
   RefreshCw,
   Pencil,
   Trash2,
+  Target,
+  AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
+import ModalPresupuesto from "../components/ModalPresupuesto";
 
 export default function Dashboard() {
   const { usuario, logout } = useAuth();
@@ -26,6 +30,29 @@ export default function Dashboard() {
   const [cargando, setCargando] = useState(true);
 
   const [transaccionAEditar, setTransaccionAEditar] = useState(null);
+
+  const [presupuestos, setPresupuestos] = useState([]);
+  const [modalPresupuestoOpen, setModalPresupuestoOpen] = useState(false);
+  const [presupuestoAEditar, setPresupuestoAEditar] = useState(null);
+
+
+  const cargarDatos = async () => {
+    setCargando(true);
+    try {
+      const [resCuentas, resTrans, resPresupuestos] = await Promise.all([
+        api.get("/cuentas"),
+        api.get("/transacciones"),
+        api.get("/presupuestos"),
+      ]);
+      setCuentas(resCuentas.data);
+      setTransacciones(resTrans.data);
+      setPresupuestos(resPresupuestos.data);
+    } catch {
+      console.error("Error al cargar datos financieros");
+    } finally {
+      setCargando(false);
+    }
+  };
 
   const handleEliminarTransaccion = async (id) => {
     if (
@@ -43,21 +70,21 @@ export default function Dashboard() {
     }
   };
 
-  const cargarDatos = async () => {
-    setCargando(true);
+  const handleEliminarPresupuesto = async (id) => {
+    if (
+      !window.confirm(
+        "¿Estás seguro de eliminar este presupuesto?",
+      )
+    )
+      return;
+
     try {
-      const [resCuentas, resTrans] = await Promise.all([
-        api.get("/cuentas"),
-        api.get("/transacciones"),
-      ]);
-      setCuentas(resCuentas.data);
-      setTransacciones(resTrans.data);
-    } catch {
-      console.error("Error al cargar datos financieros");
-    } finally {
-      setCargando(false);
+      await api.delete(`/presupuestos/${id}`);
+      cargarDatos();
+    } catch (err) {
+      alert("Error al eliminar el presupuesto");
     }
-  };
+  };  
 
   useEffect(() => {
     cargarDatos();
@@ -307,6 +334,114 @@ export default function Dashboard() {
               ))}
             </div>
           )}
+
+          {/* Sección de Presupuestos */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Target className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-lg font-bold text-slate-200">
+                  Presupuestos Mensuales
+                </h2>
+              </div>
+              <button
+                onClick={() => setModalPresupuestoOpen(true)}
+                className="text-xs font-medium text-emerald-400 hover:text-emerald-300 flex items-center space-x-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Nuevo Presupuesto</span>
+              </button>
+            </div>
+
+            {presupuestos.length === 0 ? (
+              <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl text-center text-sm text-slate-500">
+                No has definido límites de gasto para tus categorías este mes.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {presupuestos.map((p) => {
+                  const porcentaje = Math.min(
+                    Math.round((p.montoConsumido / p.montoLimite) * 100),
+                    100,
+                  );
+                  const excedido = p.montoConsumido > p.montoLimite;
+                  const advertencia = porcentaje >= 80 && !excedido;
+
+                  return (
+                    <div
+                      key={p.id}
+                      className="p-5 bg-slate-900 border border-slate-800 rounded-2xl space-y-3"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="font-bold text-slate-200">
+                            {p.nombreCategoria}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {formatQuetzales(p.montoConsumido)} de{" "}
+                            {formatQuetzales(p.montoLimite)}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          {excedido ? (
+                            <span className="flex items-center space-x-1 text-xs font-semibold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              <span>Excedido</span>
+                            </span>
+                          ) : advertencia ? (
+                            <span className="flex items-center space-x-1 text-xs font-semibold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                              <span>Cerca del límite</span>
+                            </span>
+                          ) : (
+                            <span className="flex items-center space-x-1 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>En regla</span>
+                            </span>
+                          )}
+
+                          {/* Botones de acción */}
+                          <button
+                            onClick={() => {
+                              setPresupuestoAEditar(p);
+                              setModalPresupuestoOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                            title="Editar"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            onClick={() => handleEliminarPresupuesto(p.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                            title="Eliminar"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Barra de Progreso */}
+                      <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden p-0.5 border border-slate-800">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            excedido
+                              ? "bg-rose-500"
+                              : advertencia
+                                ? "bg-amber-400"
+                                : "bg-emerald-500"
+                          }`}
+                          style={{ width: `${porcentaje}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
@@ -326,6 +461,16 @@ export default function Dashboard() {
         cuentas={cuentas}
         onTransaccionCreada={cargarDatos}
         transaccionAEditar={transaccionAEditar}
+      />
+
+      <ModalPresupuesto
+        isOpen={modalPresupuestoOpen}
+        onClose={() => {
+          setModalPresupuestoOpen(false);
+          setPresupuestoAEditar(null);
+        }}
+        onPresupuestoGuardado={cargarDatos}
+        presupuestoAEditar={presupuestoAEditar}
       />
     </div>
   );

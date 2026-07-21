@@ -8,9 +8,22 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
   const [categoriaId, setCategoriaId] = useState('');
   const [monto, setMonto] = useState('');
   const [nota, setNota] = useState('');
+  const [fecha, setFecha] = useState('');
   const [categorias, setCategorias] = useState([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState('');
+
+  // Helper para formatear fecha a YYYY-MM-DD
+  const formatFechaInput = (fechaISO) => {
+    if (!fechaISO) return '';
+    return fechaISO.split('T')[0];
+  };
+
+  // Helper para convertir fecha input a ISO string
+  const fechaToISO = (fechaInput) => {
+    if (!fechaInput) return new Date().toISOString();
+    return new Date(fechaInput + 'T00:00:00').toISOString();
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -25,11 +38,13 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
       setCategoriaId(transaccionAEditar.categoriaId.toString());
       setMonto(transaccionAEditar.monto.toString());
       setNota(transaccionAEditar.nota || '');
+      setFecha(formatFechaInput(transaccionAEditar.fecha));
     } else {
       setTipo(1);
       if (cuentas.length > 0) setCuentaId(cuentas[0].id.toString());
       setMonto('');
       setNota('');
+      setFecha(formatFechaInput(new Date().toISOString()));
     }
   }, [transaccionAEditar, isOpen, cuentas]);
 
@@ -67,7 +82,7 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
       categoriaId: parseInt(categoriaId),
       monto: parseFloat(monto),
       tipo: parseInt(tipo),
-      fecha: transaccionAEditar ? transaccionAEditar.fecha : new Date().toISOString(),
+      fecha: fechaToISO(fecha),
       nota
     };
 
@@ -179,7 +194,17 @@ export default function ModalTransaccion({ isOpen, onClose, cuentas, onTransacci
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-1">Nota / Descripción (Opcional)</label>
+            <label className="block text-xs font-medium text-slate-400 mb-1">Fecha</label>
+            <input
+              type="date"
+              required
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl py-2 px-3 text-sm focus:outline-none focus:border-emerald-500 transition"
+            />
+          </div>
+
+          <div>
             <input
               type="text"
               placeholder="Ej. Supermercado, Gasolina"

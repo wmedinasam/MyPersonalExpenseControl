@@ -63,39 +63,83 @@ public class PresupuestosController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<EstadoPresupuestoDto>> CrearPresupuesto([FromBody] CrearPresupuestoDto dto)
+    public async Task<IActionResult> GuardarPresupuesto([FromBody] CrearPresupuestoDto dto)
     {
         var usuarioId = ObtenerUsuarioId();
 
-        var categoria = await _context.Categorias
-            .FirstOrDefaultAsync(c => c.Id == dto.CategoriaId && c.UsuarioId == usuarioId);
+        var presupuestoExistente = await _context.Presupuestos
+            .FirstOrDefaultAsync(p => p.UsuarioId == usuarioId && p.CategoriaId == dto.CategoriaId);
 
-        if (categoria == null)
-            return BadRequest("Categoría inválida.");
+        // Calcular fechas si no se proporcionan
+        var ahora = DateTime.Now;
+        var fechaInicio = new DateTime(ahora.Year, ahora.Month, 1);
+        var fechaFin = fechaInicio.AddMonths(1).AddDays(-1);
 
-        var presupuesto = new Presupuesto
+        if (presupuestoExistente != null)
         {
-            UsuarioId = usuarioId,
-            CategoriaId = dto.CategoriaId,
-            MontoLimite = dto.MontoLimite,
-            Periodo = dto.Periodo,
-            FechaInicio = dto.FechaInicio,
-            FechaFin = dto.FechaFin
-        };
+            presupuestoExistente.MontoLimite = dto.MontoLimite;
+            presupuestoExistente.Periodo = dto.Periodo != default ? dto.Periodo : PeriodoPresupuesto.Mensual;
+            presupuestoExistente.FechaInicio = dto.FechaInicio != default ? dto.FechaInicio : fechaInicio;
+            presupuestoExistente.FechaFin = dto.FechaFin != default ? dto.FechaFin : fechaFin;
+        }
+        else
+        {
+            _context.Presupuestos.Add(new Presupuesto
+            {
+                UsuarioId = usuarioId,
+                CategoriaId = dto.CategoriaId,
+                MontoLimite = dto.MontoLimite,
+                Periodo = dto.Periodo != default ? dto.Periodo : PeriodoPresupuesto.Mensual,
+                FechaInicio = dto.FechaInicio != default ? dto.FechaInicio : fechaInicio,
+                FechaFin = dto.FechaFin != default ? dto.FechaFin : fechaFin
+            });
+        }
 
-        _context.Presupuestos.Add(presupuesto);
+        await _context.SaveChangesAsync();
+        return Ok("Presupuesto guardado correctamente.");
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> ActualizarPresupuesto(int id, [FromBody] CrearPresupuestoDto dto)
+    {
+        var usuarioId = ObtenerUsuarioId();
+        var presupuesto = await _context.Presupuestos
+            .FirstOrDefaultAsync(p => p.Id == id && p.UsuarioId == usuarioId);
+
+        if (presupuesto == null)
+            return NotFound("Presupuesto no encontrado.");
+
+        presupuesto.MontoLimite = dto.MontoLimite;
+        presupuesto.Periodo = dto.Periodo != default ? dto.Periodo : presupuesto.Periodo;
+        presupuesto.FechaInicio = dto.FechaInicio != default ? dto.FechaInicio : presupuesto.FechaInicio;
+        presupuesto.FechaFin = dto.FechaFin != default ? dto.FechaFin : presupuesto.FechaFin;
+
+        await _context.SaveChangesAsync();
+        return Ok("Presupuesto actualizado correctamente.");
+    }
+    // DELETE: api/presupuestos/{id}
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> EliminarPresupuesto(int id)
+    {
+        var usuarioId = ObtenerUsuarioId();
+        var presupuesto = await _context.Presupuestos
+            .FirstOrDefaultAsync(p => p.Id == id && p.UsuarioId == usuarioId);
+
+        if (presupuesto == null) return NotFound("Presupuesto no encontrado.");
+
+        _context.Presupuestos.Remove(presupuesto);
         await _context.SaveChangesAsync();
 
-        return Ok(new EstadoPresupuestoDto
-        {
-            Id = presupuesto.Id,
-            CategoriaId = presupuesto.CategoriaId,
-            NombreCategoria = categoria.Nombre,
-            MontoLimite = presupuesto.MontoLimite,
-            MontoConsumido = 0,
-            Periodo = presupuesto.Periodo,
-            FechaInicio = presupuesto.FechaInicio,
-            FechaFin = presupuesto.FechaFin
-        });
+        return Ok("Presupuesto eliminado.");
+    }
+
+    public class CrearPresupuestoDto
+    {
+        public int CategoriaId { get; set; }
+        public decimal MontoLimite { get; set; } 
+        public PeriodoPresupuesto Periodo { get; set; }
+        public DateTime FechaInicio { get; set; }
+        public DateTime FechaFin { get; set; }
+        
     }
 }
