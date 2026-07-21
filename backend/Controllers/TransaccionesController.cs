@@ -103,4 +103,82 @@ public class TransaccionesController : ControllerBase
             Nota = transaccion.Nota
         });
     }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> ActualizarTransaccion(int id, [FromBody] CrearTransaccionDto dto)
+    {
+        var usuarioId = ObtenerUsuarioId();
+
+        var transaccion = await _context.Transacciones
+            .FirstOrDefaultAsync(t => t.Id == id && t.UsuarioId == usuarioId);
+
+        if (transaccion == null)
+            return NotFound("Transacción no encontrada.");
+
+        // 1. Revertir el impacto del saldo anterior en la cuenta previa
+        var cuentaAnterior = await _context.Cuentas
+            .FirstOrDefaultAsync(c => c.Id == transaccion.CuentaId && c.UsuarioId == usuarioId);
+
+        if (cuentaAnterior != null)
+        {
+            if (transaccion.Tipo == TipoMovimiento.Ingreso)
+                cuentaAnterior.SaldoActual -= transaccion.Monto;
+            else
+                cuentaAnterior.SaldoActual += transaccion.Monto;
+        }
+
+        // 2. Obtener la nueva cuenta asignada (o la misma si no cambió)
+        var nuevaCuenta = await _context.Cuentas
+            .FirstOrDefaultAsync(c => c.Id == dto.CuentaId && c.UsuarioId == usuarioId);
+
+        if (nuevaCuenta == null)
+            return BadRequest("La cuenta seleccionada no existe.");
+
+        // 3. Aplicar el impacto del nuevo monto al saldo
+        if (dto.Tipo == TipoMovimiento.Ingreso)
+            nuevaCuenta.SaldoActual += dto.Monto;
+        else
+            nuevaCuenta.SaldoActual -= dto.Monto;
+
+        // 4. Actualizar los campos de la transacción
+        transaccion.CuentaId = dto.CuentaId;
+        transaccion.CategoriaId = dto.CategoriaId;
+        transaccion.Monto = dto.Monto;
+        transaccion.Tipo = dto.Tipo;
+        transaccion.Fecha = dto.Fecha;
+        transaccion.Nota = dto.Nota;
+
+        await _context.SaveChangesAsync();
+
+        return Ok("Transacción actualizada exitosamente.");
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> EliminarTransaccion(int id)
+    {
+        var usuarioId = ObtenerUsuarioId();
+
+        var transaccion = await _context.Transacciones
+            .FirstOrDefaultAsync(t => t.Id == id && t.UsuarioId == usuarioId);
+
+        if (transaccion == null)
+            return NotFound("Transacción no encontrada.");
+
+        // Revertir el saldo en la cuenta antes de borrar
+        var cuenta = await _context.Cuentas
+            .FirstOrDefaultAsync(c => c.Id == transaccion.CuentaId && c.UsuarioId == usuarioId);
+
+        if (cuenta != null)
+        {
+            if (transaccion.Tipo == TipoMovimiento.Ingreso)
+                cuenta.SaldoActual -= transaccion.Monto;
+            else
+                cuenta.SaldoActual += transaccion.Monto;
+        }
+
+        _context.Transacciones.Remove(transaccion);
+        await _context.SaveChangesAsync();
+
+        return Ok("Transacción eliminada exitosamente.");
+    }
 }
