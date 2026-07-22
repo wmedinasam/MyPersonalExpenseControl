@@ -1,7 +1,10 @@
 # --- .NET / C# ---
 bin/
+backend/bin/
+backend/obj/
 obj/
 .vs/
+.vscode/
 appsettings.json
 appsettings.Development.json
 
