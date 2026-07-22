@@ -4,15 +4,21 @@ backend/bin/
 backend/obj/
 obj/
 .vs/
-.vscode/
-appsettings.json
-appsettings.Development.json
+backend/appsettings.json
+backend/appsettings.Development.json
 
 # --- React / Node ---
 node_modules/
 dist/
 .env
 .env.local
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/dist/
+frontend/node_modules/
 
 # --- Editor ---
 .vscode/
